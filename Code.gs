@@ -42,48 +42,82 @@ function employeeScheduleList(payBrackets, shifts) {
 }
 
 function rosterTable(title, calendarNames, startTime, endTime) { 
-  var extract, table, renderer;
+  var extract, roster, renderer;
   var vertAxis, hozAxis;
   
   var keyGenerator = function(shift) { return shift.employeeName; };
-  var renderer = function(shift) { return shift.duration; };
+  var renderer = function(shift) { return shift.paidHours; };
   
   extract = extractShiftsFromCalendars(calendarNames, startTime, endTime);
   
   vertAxis = contentAxis("Employee", extract.shifts, keyGenerator);
   hozAxis = dateAxis("Date", startTime, endTime, function(shift) { return shift.startTime; });
 
-  table = objectTable(title, hozAxis, vertAxis, renderer, extract.shifts);
+  roster = objectTable(title, hozAxis, vertAxis, renderer, extract.shifts);
   
-  return table;
+  return roster;
 }
 
-function payrollTable(title, calendarNames, startTime, endTime) {
-  var table, extract;
+function payrollData(calendarNames, startTime, endTime, payBrackets) {
+  var payroll, extract;
   var hozAxis, vertAxis;
   var payBrackets = [range(0,7), range(7,19), range(19,24)];
   var payBracketLabels = ["<00:00 - 07:00>", "<07:00 - 19:00>", "<19:00 - 24:00>"];
   //  payBrackets: shiftPaySchedules(startTime, endTime)};
   
-  var shiftPaySchedules = function(startTime, endTime, payBrackets) {
-    //var analyser = rangeOverlapAnalyser();
-    var shiftRange = range(startTime.getHours() + startTime.getMinutes() / 60, 
-      endTime.getHours() + endTime.getMinutes() / 60);
-  
-    return multiRangeOverlaps(shiftRange, payBrackets);
+  var shiftPaySchedules = function(shift, payBrackets) {
+    var shiftRange = range(shift.startTime.getHours() + shift.startTime.getMinutes() / 60, 
+      shift.endTime.getHours() + shift.endTime.getMinutes() / 60);
+    var ov = multiRangeOverlaps(shiftRange, payBrackets);
+    
+    // apply break to 2nd pay bracket
+    ov[1] = rangeOverlap(ov[1].range, ov[1].amount - shift.shiftBreak);
+    
+    return ov;
   };
 
   extract = extractShiftsFromCalendars(calendarNames, startTime, endTime);
-  //shifts = _._map(extract.shifts, function(x) { x.schedule = shiftPaySchedules(x.startTime, x.endTime, payBrackets); return x; });
   
   var keyGenerator = function(shift) { return shift.employeeName; };
   var subKeyGenerator = function(shift) { return payBracketLabels; };
-  var renderer = function(shift) { return _._pluck(shiftPaySchedules(shift.startTime, shift.endTime, payBrackets), "amount"); };
+  var renderer = function(shift) { return _._pluck(shiftPaySchedules(shift, payBrackets), "amount"); };
   
   vertAxis = contentAxis("Employee", extract.shifts, keyGenerator, subKeyGenerator);
   hozAxis = dateAxis("Date", startTime, endTime, function(shift) { return shift.startTime; });
 
-  table = objectTable(title, hozAxis, vertAxis, renderer, extract.shifts);
+  payroll = objectDataGrid('', hozAxis, vertAxis, renderer, extract.shifts);
   
-  return table;
+  return payroll;
+}
+
+function payrollTable(title, calendarNames, startTime, endTime) {
+  var payroll, extract;
+  var hozAxis, vertAxis;
+  var payBrackets = [range(0,7), range(7,19), range(19,24)];
+  var payBracketLabels = ["<00:00 - 07:00>", "<07:00 - 19:00>", "<19:00 - 24:00>"];
+  //  payBrackets: shiftPaySchedules(startTime, endTime)};
+  
+  var shiftPaySchedules = function(shift, payBrackets) {
+    var shiftRange = range(shift.startTime.getHours() + shift.startTime.getMinutes() / 60, 
+      shift.endTime.getHours() + shift.endTime.getMinutes() / 60);
+    var ov = multiRangeOverlaps(shiftRange, payBrackets);
+    
+    // apply break to 2nd pay bracket
+    ov[1] = rangeOverlap(ov[1].range, ov[1].amount - shift.shiftBreak);
+    
+    return ov;
+  };
+
+  extract = extractShiftsFromCalendars(calendarNames, startTime, endTime);
+  
+  var keyGenerator = function(shift) { return shift.employeeName; };
+  var subKeyGenerator = function(shift) { return payBracketLabels; };
+  var renderer = function(shift) { return _._pluck(shiftPaySchedules(shift, payBrackets), "amount"); };
+  
+  vertAxis = contentAxis("Employee", extract.shifts, keyGenerator, subKeyGenerator);
+  hozAxis = dateAxis("Date", startTime, endTime, function(shift) { return shift.startTime; });
+
+  payroll = objectTable(title, hozAxis, vertAxis, renderer, extract.shifts);
+  
+  return payroll;
 }

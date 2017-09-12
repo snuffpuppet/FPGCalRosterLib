@@ -65,7 +65,7 @@ function parseShiftTitle(eventTitle, eventTime) {
 
 function calendarShift(event) {
   // Check event consistency
-  var titleResult, r;
+  var titleResult, r, dur;
   var eventTitle = event.getTitle();
   var startTime = event.getStartTime();
   var endTime = event.getEndTime();
@@ -73,12 +73,14 @@ function calendarShift(event) {
   if (!event.isAllDayEvent()) {
     titleResult = parseShiftTitle(eventTitle, startTime);
     if (titleResult.isValid) {
+      dur = (endTime - startTime) / 60 / 60 / 1000;
       r = {isValid: true, 
            employeeName: titleResult.employeeName, 
            shiftBreak: titleResult.shiftBreak, 
            startTime: startTime, 
            endTime: endTime,
-           duration: (endTime - startTime) / 60 / 60 / 1000,
+           duration: dur,
+           paidHours: dur - titleResult.shiftBreak,
           }
     }
     else {
@@ -99,7 +101,7 @@ function calendarShift(event) {
   
 function calendarShifts(calendarEvents) {
   return _._map(calendarEvents, function(x) { 
-    return calendarShift(x); 
+    return calendarShift(x);
   });
 }
 
