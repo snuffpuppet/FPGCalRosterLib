@@ -1,2 +1,2 @@
 # FPGCalRosterLib
-GCalRosterLib in an Functional Programming  style
+GCalRosterLib in a Declarative style
