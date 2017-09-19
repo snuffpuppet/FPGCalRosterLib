@@ -1,11 +1,17 @@
-function tableAxis(name, labelElements, keyIndex, keyGenerator) {
-  var r;
+function objectTable(title, hozAxis, vertAxis, renderer, content) {
+  var data = [], r;
+    
+  initDataGrid(hozAxis, vertAxis, data);
+  fillContent(hozAxis, vertAxis, data, content, renderer);
   
-  r = {name: name,
-       labels: labelElements,
-       girth: labelElements[0].length,
-       keyIndex: keyIndex,
-       keyGenerator : keyGenerator
+  r = {title: title,
+       data: data,
+       height: data.length + hozAxis.girth,
+       width: (data.length > 0 ? data[0].length : 0 )+ vertAxis.girth,
+       headerSize: hozAxis.girth,
+       hozAxis: hozAxis,
+       vertAxis: vertAxis,
+       table: renderTable(hozAxis, vertAxis, data),
       };
   Object.freeze(r);
   
@@ -48,15 +54,6 @@ function contentAxis(name, content, keyGenerator, subKeyGenerator) {
 }
 
 function dateAxis(name, startTime, endTime, keyGenerator) {
-  var dateList = function(startTime, endTime) {
-    // return _._times((endTime.getTime()-startTime.getTime())/1000/60/60/24, function(n) { return new Date(startTime,getTime() + (n-1)* 24 * 3600 * 1000) };
-    var r = [], t = startTime;
-    while (t < endTime) {
-      r[r.length] = [t.getDate() + "/" + (t.getMonth() + 1)];
-      t = new Date(t.getTime() + 24 * 60 * 60 * 1000);
-    }
-    return r;
-  };
   var labels = dateList(startTime, endTime);
   var index = labels.reduce(function(acc, x, i) { acc[x] = i; return acc }, {});
   var keyTranslator = function(element) {
@@ -66,20 +63,46 @@ function dateAxis(name, startTime, endTime, keyGenerator) {
   return tableAxis(name, labels, index, keyTranslator);
 }
 
-function objectTable(title, hozAxis, vertAxis, renderer, content) {
-  var data = [], r;
-    
-  initDataGrid(hozAxis, vertAxis, data);
-  fillContent(hozAxis, vertAxis, data, content, renderer);
+function dateList(startTime, endTime) {
+  // return _._times((endTime.getTime()-startTime.getTime())/1000/60/60/24, function(n) { return new Date(startTime,getTime() + (n-1)* 24 * 3600 * 1000) };
+  var r = [], t = startTime;
+  while (t < endTime) {
+    r[r.length] = [t.getDate() + "/" + (t.getMonth() + 1)];
+    t = new Date(t.getTime() + 24 * 60 * 60 * 1000);
+  }
+  return r;
+}
+
+/*
+function dayAxis(name, startTime, endTime, keyGenerator) {
+  // WARNING: using day as an axis key will only work if you have 7 or less elements as they will otherwise not be unique
+  var labels = dayList(startTime, endTime);
+  var index = labels.reduce(function(acc, x, i) { acc[x] = i; return acc }, {});
+  var keyTranslator = function(element) {
+    var time = keyGenerator(element);
+    return labels[time.getDay()];
+  }
+  return tableAxis(name, labels, index, keyTranslator);
+}
+*/
+function dayList(startTime, endTime) {
+  var days = ["Sun","Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  var r = [], t = startTime;
+  while (t < endTime) {
+    r[r.length] = [days[t.getDay()]];
+    t = new Date(t.getTime() + 24 * 60 * 60 * 1000);
+  }
+  return r;
+}
+
+function tableAxis(name, labelElements, keyIndex, keyGenerator) {
+  var r;
   
-  r = {title: title,
-       data: data,
-       height: data.length + hozAxis.girth,
-       width: data[0].length + vertAxis.girth,
-       headerSize: hozAxis.girth,
-       hozAxis: hozAxis,
-       vertAxis: vertAxis,
-       table: renderTable(hozAxis, vertAxis, data),
+  r = {name: name,
+       labels: labelElements,
+       girth: labelElements.length > 0 ? labelElements[0].length : 0,
+       keyIndex: keyIndex,
+       keyGenerator : keyGenerator
       };
   Object.freeze(r);
   
@@ -146,25 +169,35 @@ function initTableRow(hozAxis, table, leftLabels) {
 }
 
 function fillContent(hozAxis, vertAxis, grid, content, renderer) {
-  content.reduce(function(acc, x) { return setDataCell(acc, x, hozAxis, vertAxis, renderer); }, grid); // Fill Cells
+  content.forEach(function(x) { return setData(grid, x, hozAxis, vertAxis, renderer); }); // Fill Cells
 }
 
-function setDataCell(grid, element, hozAxis, vertAxis, renderer) {
+function setData(grid, element, hozAxis, vertAxis, renderer) {
   var row = vertAxis.keyIndex[vertAxis.keyGenerator(element)]; // + hozAxis.girth;
   var col = hozAxis.keyIndex[hozAxis.keyGenerator(element)]; // + vertAxis.girth;
   var cellData = renderer(element);
   
   if (Array.isArray(cellData)) {
     cellData.reduce(function(acc, x, i) {
-      acc[row + i][col] = x;
+      updateCell(acc, row+i, col, x); //acc[row + i][col] = x;
       return acc;
     }, grid);
   }
   else {
-    grid[row][col] = cellData;
+    updateCell(grid, row, col, cellData); //grid[row][col] = cellData;
   }
   
   return grid;
+}
+
+function updateCell(grid, row, col, value) {
+  if (BunkerUtils.isNumber(grid[row][col])) {
+    // already a value there, add this value to it
+    grid[row][col] += value;
+  }
+  else {
+    grid[row][col] = value;
+  }
 }
 
 function setTableCell(table, element, hozAxis, vertAxis, renderer) {
